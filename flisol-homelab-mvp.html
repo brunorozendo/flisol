@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Criar MVPs com Homelab — Flisol DF 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#fff}
+
+:root{
+  --bg:#ffffff;--bg2:#f0f4ff;
+  --primary:#2563eb;--secondary:#059669;--accent:#7c3aed;--warn:#d97706;--danger:#dc2626;
+  --text:#111827;--muted:#6b7280;--subtle:#9ca3af;
+  --card-bg:#ffffff;--card-border:#e5e7eb;
+  --card-shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --code-bg:#f8fafc;--code-border:#e2e8f0;
+
+  --title-size:clamp(2rem,6vw,5.5rem);
+  --h2-size:clamp(1.4rem,3.8vw,3rem);
+  --h3-size:clamp(1rem,2.2vw,1.6rem);
+  --body-size:clamp(0.82rem,1.4vw,1.05rem);
+  --small-size:clamp(0.68rem,1vw,0.82rem);
+  --code-size:clamp(0.72rem,1.2vw,0.9rem);
+  --pad:clamp(1.5rem,4vw,5rem);
+  --gap:clamp(0.6rem,1.4vw,1.4rem);
+  --eg:clamp(0.3rem,0.7vw,0.7rem);
+}
+
+.slide{
+  width:100vw;height:100vh;height:100dvh;
+  overflow:hidden;position:absolute;top:0;left:0;
+  background:var(--bg);
+  transition:transform .55s cubic-bezier(.77,0,.175,1),opacity .55s ease;
+}
+.slide[data-s="prev"]{transform:translateY(-100%);opacity:0;pointer-events:none}
+.slide[data-s="active"]{transform:translateY(0);opacity:1;z-index:2}
+.slide[data-s="next"]{transform:translateY(100%);opacity:0;pointer-events:none}
+
+/* Decorative */
+.gridbg{position:absolute;inset:0;background-image:linear-gradient(rgba(37,99,235,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(37,99,235,.04) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+.orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.08;pointer-events:none;z-index:0;animation:glowPulse 5s ease-in-out infinite}
+
+/* Nav */
+#prog{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--secondary));z-index:100;transition:width .4s ease}
+#ctr{position:fixed;bottom:clamp(.8rem,2vw,1.8rem);right:clamp(.8rem,2vw,2rem);font-family:'JetBrains Mono',monospace;font-size:var(--small-size);color:var(--subtle);z-index:100}
+#ctr span{color:var(--primary)}
+#navbtns{position:fixed;bottom:clamp(.8rem,2vw,1.8rem);left:50%;transform:translateX(-50%);display:flex;gap:.8rem;z-index:100}
+.nb{background:#fff;border:1px solid var(--card-border);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:1rem;cursor:pointer;padding:.25rem .7rem;border-radius:4px;transition:all .2s;box-shadow:var(--card-shadow)}
+.nb:hover{border-color:var(--primary);color:var(--primary)}
+
+/* Inner wrapper */
+.inner{position:relative;z-index:1;width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;padding:var(--pad)}
+
+/* Typography */
+h1{font-family:'JetBrains Mono',monospace;font-size:var(--title-size);font-weight:800;line-height:1.05;letter-spacing:-.03em;color:var(--text)}
+h2{font-family:'Space Grotesk',sans-serif;font-size:var(--h2-size);font-weight:700;line-height:1.2;color:var(--text)}
+h3{font-family:'Space Grotesk',sans-serif;font-size:var(--h3-size);font-weight:500;color:var(--text)}
+p,li{font-family:'Space Grotesk',sans-serif;font-size:var(--body-size);color:var(--text);line-height:1.55}
+.mono{font-family:'JetBrains Mono',monospace}
+.p{color:var(--primary)}.s{color:var(--secondary)}.ac{color:var(--accent)}.w{color:var(--warn)}.dg{color:var(--danger)}
+
+/* Entry animation */
+.a{opacity:0;transform:translateY(16px)}
+.slide[data-s="active"] .a{animation:up .45s ease forwards}
+.slide[data-s="active"] .a:nth-child(1){animation-delay:.08s}
+.slide[data-s="active"] .a:nth-child(2){animation-delay:.16s}
+.slide[data-s="active"] .a:nth-child(3){animation-delay:.24s}
+.slide[data-s="active"] .a:nth-child(4){animation-delay:.32s}
+.slide[data-s="active"] .a:nth-child(5){animation-delay:.40s}
+.slide[data-s="active"] .a:nth-child(6){animation-delay:.48s}
+.slide[data-s="active"] .a:nth-child(7){animation-delay:.56s}
+@keyframes up{to{opacity:1;transform:translateY(0)}}
+@keyframes glowPulse{0%,100%{opacity:.08}50%{opacity:.14}}
+
+/* Title slide */
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:var(--small-size);color:var(--primary);letter-spacing:.2em;text-transform:uppercase;margin-bottom:clamp(.5rem,1.5vw,1.2rem)}
+.grad{background:linear-gradient(135deg,var(--primary) 0%,var(--accent) 55%,var(--text) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.title-sub{font-family:'Space Grotesk',sans-serif;font-size:clamp(1rem,2.5vw,1.7rem);color:var(--muted);margin-bottom:clamp(.8rem,2vw,2rem)}
+.tags{display:flex;gap:clamp(.5rem,1.5vw,1rem);flex-wrap:wrap}
+.tag{font-family:'JetBrains Mono',monospace;font-size:var(--small-size);padding:.3em .8em;border-radius:999px;letter-spacing:.05em}
+.tp{background:rgba(37,99,235,.08);color:var(--primary);border:1px solid rgba(37,99,235,.2)}
+.ts{background:rgba(5,150,105,.08);color:var(--secondary);border:1px solid rgba(5,150,105,.2)}
+.ta{background:rgba(124,58,237,.08);color:var(--accent);border:1px solid rgba(124,58,237,.2)}
+.tw{background:rgba(217,119,6,.08);color:var(--warn);border:1px solid rgba(217,119,6,.2)}
+.td{background:rgba(220,38,38,.08);color:var(--danger);border:1px solid rgba(220,38,38,.2)}
+.tag-out{border:1px solid var(--card-border);color:var(--muted);background:#fff}
+.tag-out.active{border-color:var(--primary);color:var(--primary)}
+.bigicon{position:absolute;right:clamp(2rem,7vw,8rem);top:50%;transform:translateY(-50%);font-size:clamp(5rem,14vw,16rem);opacity:.04;user-select:none}
+
+/* Section header */
+.sec-slide{background:var(--bg2)}
+.sec-line{width:clamp(40px,7vw,70px);height:3px;margin-bottom:clamp(.8rem,1.5vw,1.5rem)}
+.sec-tag{font-family:'JetBrains Mono',monospace;font-size:var(--small-size);color:var(--primary);letter-spacing:.2em;text-transform:uppercase;margin-bottom:.4em}
+.sec-title{font-family:'JetBrains Mono',monospace;font-size:clamp(2rem,5.5vw,4.5rem);font-weight:800;line-height:1.05;color:var(--text);max-width:70%}
+.sec-sub{font-family:'Space Grotesk',sans-serif;font-size:var(--h3-size);color:var(--muted);margin-top:.5em;max-width:65%}
+.sec-num{font-family:'JetBrains Mono',monospace;font-size:clamp(5rem,11vw,11rem);font-weight:800;line-height:1;color:transparent;-webkit-text-stroke:1.5px var(--card-border);position:absolute;right:calc(-1 * clamp(.5rem,2vw,2rem));bottom:clamp(1rem,3vw,2rem);user-select:none}
+
+/* Content */
+.ctag{font-family:'JetBrains Mono',monospace;font-size:var(--small-size);color:var(--primary);letter-spacing:.15em;text-transform:uppercase;margin-bottom:.3em;opacity:.7}
+.ul{list-style:none;display:flex;flex-direction:column;gap:clamp(.4rem,1vw,.9rem)}
+.ul li{display:flex;align-items:flex-start;gap:.7em;font-size:var(--body-size);line-height:1.5}
+.ul li::before{content:'▸';color:var(--primary);flex-shrink:0;margin-top:.1em}
+.hbox{background:var(--code-bg);border:1px solid var(--code-border);border-left:3px solid var(--primary);padding:clamp(.6rem,1.2vw,1.2rem);border-radius:0 8px 8px 0;margin-top:var(--gap)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);margin-top:var(--gap)}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:clamp(.7rem,1.3vw,1.3rem);box-shadow:var(--card-shadow)}
+.card h3{font-family:'JetBrains Mono',monospace;font-size:var(--h3-size);margin-bottom:.5em}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(.4rem,1vw,.9rem);margin-top:var(--gap)}
+.fc{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:clamp(.5rem,1vw,1rem);box-shadow:var(--card-shadow)}
+.fi{font-size:clamp(1.2rem,2.5vw,2rem);margin-bottom:.3em}
+.ft{font-family:'JetBrains Mono',monospace;font-size:var(--small-size);color:var(--primary);font-weight:700;margin-bottom:.2em}
+.fd{font-family:'Space Grotesk',sans-serif;font-size:var(--small-size);color:var(--muted);line-height:1.4}
+
+/* Steps */
+.steps{display:flex;flex-direction:column;gap:clamp(.45rem,1vw,.9rem);margin-top:var(--gap)}
+.step{display:flex;gap:.9em;align-items:flex-start}
+.snum{font-family:'JetBrains Mono',monospace;font-size:var(--small-size);color:var(--primary);background:rgba(37,99,235,.07);border:1px solid rgba(37,99,235,.15);border-radius:4px;padding:.2em .5em;flex-shrink:0;margin-top:.15em}
+.step h4{font-family:'Space Grotesk',sans-serif;font-size:var(--body-size);font-weight:700;color:var(--text);margin-bottom:.15em}
+.step p{font-size:var(--small-size);color:var(--muted)}
+
+/* Code */
+.codeblock{background:var(--code-bg);border:1px solid var(--code-border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;flex:1;box-shadow:var(--card-shadow)}
+.codehdr{background:#f1f5f9;padding:.5em 1em;display:flex;align-items:center;gap:.45em;border-bottom:1px solid var(--code-border)}
+.dot{width:10px;height:10px;border-radius:50%}
+.fname{font-family:'JetBrains Mono',monospace;font-size:var(--small-size);color:var(--muted);margin-left:auto}
+.codebody{padding:clamp(.7rem,1.3vw,1.3rem);overflow:hidden;flex:1}
+.codebody pre{font-family:'JetBrains Mono',monospace;font-size:var(--code-size);line-height:1.7;color:var(--text);white-space:pre;overflow:hidden}
+/* Light syntax colors (GitHub-inspired) */
+.sk{color:#0550ae}.sv{color:#116329}.ss{color:#953800}.sc{color:#6e7781;font-style:italic}.sb{color:#8250df}.sd{color:#cf222e;font-weight:700}
+
+/* Tunnel diagram */
+.diagram{display:flex;align-items:center;justify-content:center;gap:clamp(.6rem,1.5vw,1.5rem);flex-wrap:wrap;margin-top:var(--gap)}
+.dnode{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:clamp(.4rem,.9vw,.9rem) clamp(.6rem,1.2vw,1.2rem);text-align:center;min-width:clamp(70px,10vw,110px);box-shadow:var(--card-shadow)}
+.dnode .di{font-size:clamp(1.4rem,2.8vw,2.2rem);display:block;margin-bottom:.25em}
+.dnode .dl{font-family:'JetBrains Mono',monospace;font-size:var(--small-size);color:var(--muted);line-height:1.3}
+.dnode.hl{border-color:var(--primary);box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+.dnode.hl .dl{color:var(--primary)}
+.darr{font-family:'JetBrains Mono',monospace;color:var(--primary);font-size:clamp(.9rem,1.8vw,1.4rem);opacity:.5;flex-shrink:0}
+
+/* QR */
+.qrwrap{display:flex;flex-direction:column;align-items:center;gap:clamp(.7rem,1.3vw,1.3rem)}
+.qrimg{width:clamp(130px,18vw,200px);height:clamp(130px,18vw,200px);border:2px solid var(--primary);border-radius:10px;padding:6px;background:white;box-shadow:0 4px 24px rgba(37,99,235,.2)}
+.qrlabel{font-family:'JetBrains Mono',monospace;font-size:var(--body-size);color:var(--primary)}
+
+/* Responsive */
+@media(max-height:700px){
+  :root{--pad:clamp(.8rem,3vw,2rem);--h2-size:clamp(1.1rem,3vw,1.8rem);--body-size:clamp(.75rem,1.3vw,.95rem)}
+  .sec-title{font-size:clamp(1.6rem,4.5vw,3rem)}
+}
+@media(max-height:600px){
+  :root{--pad:clamp(.5rem,2.5vw,1.5rem);--gap:clamp(.3rem,.8vw,.7rem)}
+  #navbtns{display:none}
+}
+@media(max-width:768px){
+  .two,.grid3{grid-template-columns:1fr}
+  .sec-title,.sec-sub{max-width:100%}
+  .bigicon{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.2s!important}
+}
+</style>
+</head>
+<body>
+
+<div id="prog"></div>
+<div id="ctr"><span id="cs">1</span> / <span id="ts">27</span></div>
+<nav id="navbtns"><button class="nb" id="bp">←</button><button class="nb" id="bn">→</button></nav>
+
+<main>
+
+<!-- ====== SLIDE 1: TITLE ====== -->
+<section class="slide" data-s="active" aria-label="Título">
+  <div class="gridbg"></div>
+  <div class="orb" style="width:600px;height:600px;background:var(--primary);top:-200px;left:-100px"></div>
+  <div class="orb" style="width:400px;height:400px;background:var(--accent);bottom:-100px;right:20%;animation-delay:2s"></div>
+  <div class="bigicon" aria-hidden="true">🖥️</div>
+  <div class="inner">
+    <p class="eyebrow a">Flisol DF 2026 · 40 min talk</p>
+    <h1 class="grad a">Criar MVPs<br>com Homelab</h1>
+    <p class="title-sub a">Do notebook barato à produção real</p>
+    <div class="tags a">
+      <span class="tag tag-out active">Bruno Rozendo</span>
+      <span class="tag tag-out">Open Source</span>
+      <span class="tag tag-out">Infrastructure</span>
+      <span class="tag tag-out">Empreendedorismo</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 2: SEC 1 HEADER ====== -->
+<section class="slide sec-slide" data-s="next" aria-label="Seção 1">
+  <div class="gridbg"></div>
+  <div class="orb" style="width:500px;height:500px;background:var(--accent);top:-100px;right:-100px"></div>
+  <div class="inner">
+    <div class="sec-line a" style="background:linear-gradient(90deg,var(--primary),var(--accent))"></div>
+    <p class="sec-tag a">01 / seis seções</p>
+    <h2 class="sec-title a">💡 Ideias,<br>Mentalidade &<br>Empreendedorismo</h2>
+    <p class="sec-sub a">Antes de gastar R$ 1, você precisa pensar certo</p>
+    <span class="sec-num" aria-hidden="true">01</span>
+  </div>
+</section>
+
+<!-- ====== SLIDE 3: VOCÊ TEM UMA IDEIA ====== -->
+<section class="slide" data-s="next" aria-label="Você tem uma ideia">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Ponto de partida</p>
+    <h2 class="a">Você tem uma ideia.<br><span class="p">E agora?</span></h2>
+    <ul class="ul a" style="margin-top:var(--gap)">
+      <li>A maioria das ideias morre por excesso de perfeccionismo ou falta de ação</li>
+      <li>O maior erro: construir demais <em>antes</em> de validar o problema</li>
+      <li>Valide a hipótese antes de gastar R$ 1 em infraestrutura</li>
+      <li>Converse com 10 pessoas do público-alvo antes de escrever código</li>
+    </ul>
+    <div class="hbox a">
+      <p><span class="w mono">"</span> A ideia vale zero. A execução é tudo. <span class="w mono">"</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 4: O QUE É MVP ====== -->
+<section class="slide" data-s="next" aria-label="O que é MVP">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Conceito fundamental</p>
+    <h2 class="a">MVP = <span class="p">Mínimo</span> Produto <span class="s">Viável</span></h2>
+    <div class="two a">
+      <div class="card" style="border-color:rgba(5,150,105,.25)">
+        <h3 style="color:var(--secondary)">✅ É um MVP</h3>
+        <ul class="ul" style="margin-top:.7em">
+          <li>Resolve 1 problema real</li>
+          <li>Tem usuários reais usando</li>
+          <li>Gera aprendizado mensurável</li>
+          <li>Pode ser feito em semanas</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:rgba(220,38,38,.2)">
+        <h3 style="color:var(--danger)">❌ Não é um MVP</h3>
+        <ul class="ul" style="margin-top:.7em">
+          <li>Feature completa demais</li>
+          <li>Perfeito antes de lançar</li>
+          <li>Sem feedback de usuário</li>
+          <li>Sem métricas de sucesso</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 5: MENTALIDADE ====== -->
+<section class="slide" data-s="next" aria-label="Mentalidade">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Mindset</p>
+    <h2 class="a">Errar rápido. <span class="s">Aprender.</span> Iterar.</h2>
+    <div class="steps a">
+      <div class="step">
+        <span class="snum">BUILD</span>
+        <div><h4>Construa o mínimo para testar a hipótese</h4><p>Horas ou dias — não meses. Imperfeito é ok.</p></div>
+      </div>
+      <div class="step">
+        <span class="snum">MEASURE</span>
+        <div><h4>Meça com dados reais</h4><p>Não com opiniões ou achismos. Métricas definem sucesso.</p></div>
+      </div>
+      <div class="step">
+        <span class="snum">LEARN</span>
+        <div><h4>Aprenda e decida</h4><p>Pivota ou persiste — mas com base em evidência.</p></div>
+      </div>
+    </div>
+    <div class="hbox a">
+      <p>O homelab existe para <span class="s">acelerar esse ciclo</span> com custo próximo de zero</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 6: EMPREENDEDORISMO ====== -->
+<section class="slide" data-s="next" aria-label="Empreendedorismo">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Prática</p>
+    <h2 class="a">Baixo custo, <span class="p">alto aprendizado</span></h2>
+    <div class="grid3 a">
+      <div class="fc"><div class="fi">💰</div><div class="ft">Custo zero de cloud</div><div class="fd">Sem fatura surpresa da AWS no final do mês</div></div>
+      <div class="fc"><div class="fi">⚡</div><div class="ft">Deploy em minutos</div><div class="fd">Sem burocracias de IAM, VPC, billing alerts</div></div>
+      <div class="fc"><div class="fi">🎓</div><div class="ft">Aprendizado real</div><div class="fd">Você aprende infra de verdade, não clicando em UI</div></div>
+      <div class="fc"><div class="fi">🔄</div><div class="ft">Iteração rápida</div><div class="fd">Muda, testa, quebra, conserta — sem custo por request</div></div>
+      <div class="fc"><div class="fi">🌍</div><div class="ft">Produção real</div><div class="fd">Com Cloudflare Tunnel seu homelab atende usuários reais</div></div>
+      <div class="fc"><div class="fi">🧪</div><div class="ft">Laboratório vivo</div><div class="fd">Ambiente para experimentar qualquer stack</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 7: SEC 2 HEADER ====== -->
+<section class="slide sec-slide" data-s="next" aria-label="Seção 2">
+  <div class="gridbg"></div>
+  <div class="orb" style="width:500px;height:500px;background:var(--secondary);bottom:-150px;left:-100px"></div>
+  <div class="inner">
+    <div class="sec-line a" style="background:linear-gradient(90deg,var(--secondary),var(--primary))"></div>
+    <p class="sec-tag a" style="color:var(--secondary)">02 / seis seções</p>
+    <h2 class="sec-title a">🖥️ Hardware<br>Barato</h2>
+    <p class="sec-sub a">Não precisa de AWS pra começar</p>
+    <span class="sec-num" aria-hidden="true">02</span>
+  </div>
+</section>
+
+<!-- ====== SLIDE 8: NÃO PRECISA DE AWS ====== -->
+<section class="slide" data-s="next" aria-label="Homelab vs Cloud">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Perspectiva de custo</p>
+    <h2 class="a"><span class="dg">Não precisa</span> de AWS pra começar</h2>
+    <div class="two a">
+      <div class="card" style="border-color:rgba(220,38,38,.2)">
+        <h3 style="color:var(--danger)">☁️ Cloud (mensal)</h3>
+        <ul class="ul" style="margin-top:.7em">
+          <li>EC2 t3.medium: ~R$ 200/mês</li>
+          <li>RDS básico: ~R$ 150/mês</li>
+          <li>Cartão de crédito obrigatório</li>
+          <li>Risco de fatura surpresa</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:rgba(5,150,105,.25)">
+        <h3 style="color:var(--secondary)">🖥️ Homelab (total)</h3>
+        <ul class="ul" style="margin-top:.7em">
+          <li>Notebook usado: R$ 800 (único)</li>
+          <li>Energia: ~R$ 30/mês</li>
+          <li>Zero limite de requests</li>
+          <li>Você controla tudo</li>
+        </ul>
+      </div>
+    </div>
+    <div class="hbox a">
+      <p>ROI positivo em <span class="s">menos de 3 meses</span> comparado à cloud equivalente</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 9: NOTEBOOKBARATO ====== -->
+<section class="slide" data-s="next" aria-label="Onde comprar">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Onde comprar</p>
+    <h2 class="a">Achando o hardware <span class="p">ideal</span></h2>
+    <div class="hbox a" style="border-left-color:var(--secondary);margin-top:var(--gap)">
+      <p class="mono s" style="font-size:var(--h3-size)">notebookbaratoonline.com.br</p>
+      <p style="margin-top:.4em;color:var(--muted);font-size:var(--small-size)">Agregador de preços para notebooks e computadores novos e usados</p>
+    </div>
+    <ul class="ul a" style="margin-top:var(--gap)">
+      <li>Compare preços de múltiplas lojas em uma busca só</li>
+      <li>Filtre por RAM, armazenamento, processador</li>
+      <li>Ative alertas de preço para modelos específicos</li>
+      <li>Busca em Mercado Livre e OLX para seminovos</li>
+      <li>Histórico de preços — saiba quando é bom negócio</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====== SLIDE 10: CRITÉRIOS ====== -->
+<section class="slide" data-s="next" aria-label="Critérios de hardware">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Spec sheet do homelab</p>
+    <h2 class="a">O que olhar na hora de <span class="s">comprar</span></h2>
+    <div class="steps a">
+      <div class="step">
+        <span class="snum">RAM</span>
+        <div><h4>Mínimo 8 GB — ideal 16 GB</h4><p>Para rodar múltiplos containers Docker simultaneamente</p></div>
+      </div>
+      <div class="step">
+        <span class="snum">SSD</span>
+        <div><h4>Obrigatório — mínimo 256 GB</h4><p>HDD torna o servidor lento demais para apps modernas</p></div>
+      </div>
+      <div class="step">
+        <span class="snum">CPU</span>
+        <div><h4>Intel i5/i7 (7ª gen+) ou AMD Ryzen 5</h4><p>Geração antiga ainda aguenta bem como servidor headless</p></div>
+      </div>
+      <div class="step">
+        <span class="snum" style="color:var(--warn);border-color:rgba(217,119,6,.2);background:rgba(217,119,6,.07)">$$$</span>
+        <div><h4>Budget: R$ 600 – R$ 1.500</h4><p>Suficiente para um homelab que aguenta MVPs reais com usuários</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 11: SEC 3 HEADER ====== -->
+<section class="slide sec-slide" data-s="next" aria-label="Seção 3">
+  <div class="gridbg"></div>
+  <div class="orb" style="width:500px;height:500px;background:var(--primary);top:-100px;left:30%"></div>
+  <div class="inner">
+    <div class="sec-line a" style="background:linear-gradient(90deg,var(--primary),var(--secondary))"></div>
+    <p class="sec-tag a">03 / seis seções</p>
+    <h2 class="sec-title a">🐧 Formatando<br>& Instalando<br>Linux</h2>
+    <p class="sec-sub a">O OS de 96% dos servidores do mundo</p>
+    <span class="sec-num" aria-hidden="true">03</span>
+  </div>
+</section>
+
+<!-- ====== SLIDE 12: POR QUE LINUX ====== -->
+<section class="slide" data-s="next" aria-label="Por que Linux">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Motivação</p>
+    <h2 class="a">Por que <span class="s">Linux</span>?</h2>
+    <div class="grid3 a" style="margin-top:var(--gap)">
+      <div class="fc"><div class="fi">🆓</div><div class="ft">Gratuito</div><div class="fd">Zero licenças. Sem ativações. Sem expiração.</div></div>
+      <div class="fc"><div class="fi">🏗️</div><div class="ft">Estável</div><div class="fd">Servidores meses sem restart. Sem Blue Screen.</div></div>
+      <div class="fc"><div class="fi">🌐</div><div class="ft">96% dos servidores</div><div class="fd">Vai para cloud um dia? Já estará em casa.</div></div>
+      <div class="fc"><div class="fi">🐳</div><div class="ft">Docker nativo</div><div class="fd">Containers sem overhead. Ecosystem completo.</div></div>
+      <div class="fc"><div class="fi">🤝</div><div class="ft">Comunidade</div><div class="fd">Toda dúvida já foi respondida no StackOverflow.</div></div>
+      <div class="fc"><div class="fi">⚙️</div><div class="ft">Automação</div><div class="fd">Shell, cron, systemd — tudo via linha de comando.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 13: QUAL DISTRO ====== -->
+<section class="slide" data-s="next" aria-label="Qual distro">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Recomendação</p>
+    <h2 class="a"><span class="p">Ubuntu Server</span> ou Debian</h2>
+    <div class="two a">
+      <div class="card" style="border-color:rgba(37,99,235,.25)">
+        <h3 style="color:var(--primary)">Ubuntu Server 24.04 LTS</h3>
+        <ul class="ul" style="margin-top:.7em">
+          <li>Suporte LTS por 5 anos</li>
+          <li>Maior comunidade e docs</li>
+          <li>Ansible modules bem testados</li>
+          <li>apt — packages abundantes</li>
+        </ul>
+        <div style="margin-top:.8em"><span class="tag ts">✅ Recomendado</span></div>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--muted)">Debian 12 Bookworm</h3>
+        <ul class="ul" style="margin-top:.7em">
+          <li>Mais estável, menos bleeding edge</li>
+          <li>Base do Ubuntu — familiar</li>
+          <li>Menos RAM overhead</li>
+          <li>Preferido em VPS</li>
+        </ul>
+        <div style="margin-top:.8em"><span class="tag tp">Alternativa</span></div>
+      </div>
+    </div>
+    <div class="hbox a">
+      <p>Download: <span class="mono p">ubuntu.com/download/server</span> → Grave em pendrive com Balena Etcher</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 14: INSTALAÇÃO ====== -->
+<section class="slide" data-s="next" aria-label="Instalação Linux">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Passo a passo</p>
+    <h2 class="a">Do zero ao <span class="s">SSH ativo</span></h2>
+    <div class="steps a">
+      <div class="step">
+        <span class="snum">01</span>
+        <div><h4>Boot pelo pendrive</h4><p>BIOS → Boot Order → USB primeiro → instalar Ubuntu Server sem GUI</p></div>
+      </div>
+      <div class="step">
+        <span class="snum">02</span>
+        <div><h4>Habilitar SSH durante a instalação</h4><p>Marque "Install OpenSSH server" — acesso remoto desde o primeiro boot</p></div>
+      </div>
+      <div class="step">
+        <span class="snum">03</span>
+        <div><h4>Configurar IP fixo local</h4><p>Reserve o IP no roteador por MAC address — servidor sempre no mesmo endereço</p></div>
+      </div>
+      <div class="step">
+        <span class="snum">04</span>
+        <div><h4>Acessar via SSH</h4><p class="mono p">ssh usuario@192.168.1.X</p></div>
+      </div>
+      <div class="step">
+        <span class="snum">05</span>
+        <div><h4>Instalar Docker</h4><p class="mono s">curl -fsSL https://get.docker.com | sh</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 15: SEC 4 HEADER ====== -->
+<section class="slide sec-slide" data-s="next" aria-label="Seção 4">
+  <div class="gridbg"></div>
+  <div class="orb" style="width:500px;height:500px;background:var(--warn);bottom:-100px;right:-100px"></div>
+  <div class="inner">
+    <div class="sec-line a" style="background:linear-gradient(90deg,var(--warn),var(--primary))"></div>
+    <p class="sec-tag a" style="color:var(--warn)">04 / seis seções</p>
+    <h2 class="sec-title a">🤖 Ansible</h2>
+    <p class="sec-sub a">Deploy automatizado como código</p>
+    <span class="sec-num" aria-hidden="true">04</span>
+  </div>
+</section>
+
+<!-- ====== SLIDE 16: O QUE É ANSIBLE ====== -->
+<section class="slide" data-s="next" aria-label="O que é Ansible">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Infrastructure as Code</p>
+    <h2 class="a">O que é <span class="w">Ansible</span>?</h2>
+    <ul class="ul a" style="margin-top:var(--gap)">
+      <li>Automatiza tarefas em servidores via SSH — sem instalar agente no host</li>
+      <li>Configuração em YAML legível por humanos</li>
+      <li>Idempotente — rode 10 vezes, o resultado é sempre o mesmo</li>
+      <li>Um playbook = deploy completo, do zero ao ar</li>
+    </ul>
+    <div class="two a" style="margin-top:var(--gap)">
+      <div class="card" style="border-color:rgba(220,38,38,.2)">
+        <h3 style="color:var(--danger)">❌ Sem Ansible</h3>
+        <p style="font-size:var(--small-size);color:var(--muted);margin-top:.4em">ssh → apt install → git clone → docker run → reza para não dar erro da próxima vez</p>
+      </div>
+      <div class="card" style="border-color:rgba(5,150,105,.25)">
+        <h3 style="color:var(--secondary)">✅ Com Ansible</h3>
+        <p style="font-size:var(--small-size);color:var(--muted);margin-top:.4em"><span class="mono p">ansible-playbook deploy.yml</span> → pronto. Idêntico em qualquer servidor.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 17: PLAYBOOK YAML ====== -->
+<section class="slide" data-s="next" aria-label="Playbook Ansible">
+  <div class="gridbg"></div>
+  <div class="inner" style="padding-top:clamp(1rem,2vw,2.5rem);padding-bottom:clamp(1rem,2vw,2.5rem)">
+    <p class="ctag a">Código</p>
+    <h2 class="a" style="margin-bottom:var(--gap)">Playbook de <span class="w">deploy</span></h2>
+    <div class="codeblock a">
+      <div class="codehdr">
+        <div class="dot" style="background:#ff5f56"></div>
+        <div class="dot" style="background:#ffbd2e"></div>
+        <div class="dot" style="background:#27c93f"></div>
+        <span class="fname">deploy.yml</span>
+      </div>
+      <div class="codebody">
+<pre><span class="sd">---</span>
+<span class="sd">-</span> <span class="sk">name</span>: <span class="ss">Deploy app no homelab</span>
+  <span class="sk">hosts</span>: <span class="ss">homelab</span>
+  <span class="sk">become</span>: <span class="sb">yes</span>
+
+  <span class="sk">tasks</span>:
+    <span class="sd">-</span> <span class="sk">name</span>: <span class="ss">Instalar Docker</span>
+      <span class="sk">apt</span>:
+        <span class="sk">name</span>: <span class="ss">docker.io</span>
+        <span class="sk">state</span>: <span class="sv">present</span>
+
+    <span class="sd">-</span> <span class="sk">name</span>: <span class="ss">Subir container da aplicação</span>
+      <span class="sk">docker_container</span>:
+        <span class="sk">name</span>: <span class="ss">minha-app</span>
+        <span class="sk">image</span>: <span class="ss">brunorozendo/minha-app:latest</span>
+        <span class="sk">state</span>: <span class="sv">started</span>
+        <span class="sk">ports</span>:
+          <span class="sd">-</span> <span class="ss">"8080:8080"</span>
+        <span class="sk">restart_policy</span>: <span class="sv">always</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 18: BENEFÍCIOS ANSIBLE ====== -->
+<section class="slide" data-s="next" aria-label="Benefícios Ansible">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Por que usar</p>
+    <h2 class="a">Ansible no <span class="s">homelab MVP</span></h2>
+    <div class="steps a" style="margin-top:var(--gap)">
+      <div class="step">
+        <span class="snum" style="color:var(--warn);border-color:rgba(217,119,6,.2);background:rgba(217,119,6,.07)">PKG</span>
+        <div><h4>Reproduzível</h4><p>Novo servidor? 1 comando e está igual. Sem "funciona na minha máquina".</p></div>
+      </div>
+      <div class="step">
+        <span class="snum" style="color:var(--warn);border-color:rgba(217,119,6,.2);background:rgba(217,119,6,.07)">GIT</span>
+        <div><h4>Versionado no Git</h4><p>Histórico de todas as mudanças de infra. Code review de infraestrutura!</p></div>
+      </div>
+      <div class="step">
+        <span class="snum" style="color:var(--warn);border-color:rgba(217,119,6,.2);background:rgba(217,119,6,.07)">RUN</span>
+        <div><h4>Deploy em segundos</h4><p>Novo release = <span class="mono s">ansible-playbook deploy.yml</span>. Sem SSH manual.</p></div>
+      </div>
+      <div class="step">
+        <span class="snum" style="color:var(--warn);border-color:rgba(217,119,6,.2);background:rgba(217,119,6,.07)">UP</span>
+        <div><h4>Escala para cloud depois</h4><p>Mesmos playbooks funcionam na AWS/GCP quando o negócio crescer.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 19: SEC 5 HEADER ====== -->
+<section class="slide sec-slide" data-s="next" aria-label="Seção 5">
+  <div class="gridbg"></div>
+  <div class="orb" style="width:600px;height:600px;background:var(--primary);top:-200px;right:-100px"></div>
+  <div class="inner">
+    <div class="sec-line a" style="background:linear-gradient(90deg,var(--primary),var(--secondary))"></div>
+    <p class="sec-tag a">05 / seis seções</p>
+    <h2 class="sec-title a">☁️ Cloudflare<br>Tunnel</h2>
+    <p class="sec-sub a">Seu homelab na internet — sem IP fixo, sem abrir porta</p>
+    <span class="sec-num" aria-hidden="true">05</span>
+  </div>
+</section>
+
+<!-- ====== SLIDE 20: O QUE É CLOUDFLARE TUNNEL ====== -->
+<section class="slide" data-s="next" aria-label="O que é Cloudflare Tunnel">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Exposição de serviço</p>
+    <h2 class="a">Seu serviço na internet<br><span class="p">SEM IP fixo</span></h2>
+    <ul class="ul a" style="margin-top:var(--gap)">
+      <li>Conexão de saída do seu servidor para Cloudflare — nenhuma porta aberta no roteador</li>
+      <li>Usuários acessam via domínio normal com HTTPS automático (certificado incluso)</li>
+      <li>Gratuito no plano Free da Cloudflare</li>
+      <li>Latência baixa — CDN global da Cloudflare entrega o conteúdo</li>
+      <li>Proteção contra DDoS embutida</li>
+    </ul>
+    <div class="hbox a" style="border-left-color:var(--secondary)">
+      <p>Antes: IP fixo no provedor = R$ 50+/mês. Agora: <span class="s">gratuito com Cloudflare</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 21: DIAGRAMA TUNNEL ====== -->
+<section class="slide" data-s="next" aria-label="Como funciona Cloudflare Tunnel">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Arquitetura</p>
+    <h2 class="a">Como <span class="p">funciona</span></h2>
+    <div class="diagram a">
+      <div class="dnode"><span class="di">👤</span><span class="dl">Usuário</span></div>
+      <div class="darr">──▶</div>
+      <div class="dnode hl"><span class="di">☁️</span><span class="dl">Cloudflare<br>Edge</span></div>
+      <div class="darr">◀──</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.3em">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:var(--small-size);color:var(--secondary)">cloudflared</span>
+        <span class="darr" style="transform:rotate(90deg)">──▶</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:var(--small-size);color:var(--subtle)">saída</span>
+      </div>
+      <div class="dnode"><span class="di">🖥️</span><span class="dl">Homelab<br>local</span></div>
+      <div class="darr">──▶</div>
+      <div class="dnode"><span class="di">🐳</span><span class="dl">App<br>:8080</span></div>
+    </div>
+    <div class="hbox a" style="border-left-color:var(--primary);margin-top:var(--gap)">
+      <p>O daemon <span class="mono p">cloudflared</span> abre a conexão de saída. Seu roteador não precisa de port forwarding.</p>
+    </div>
+    <div style="display:flex;gap:var(--eg);margin-top:var(--gap);flex-wrap:wrap" class="a">
+      <span class="tag ts">HTTPS automático</span>
+      <span class="tag tp">Sem IP fixo</span>
+      <span class="tag td">Sem abrir porta</span>
+      <span class="tag tw">Gratuito</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 22: COMANDOS CLOUDFLARED ====== -->
+<section class="slide" data-s="next" aria-label="Comandos cloudflared">
+  <div class="gridbg"></div>
+  <div class="inner" style="padding-top:clamp(1rem,2vw,2.5rem);padding-bottom:clamp(1rem,2vw,2.5rem)">
+    <p class="ctag a">Comandos</p>
+    <h2 class="a" style="margin-bottom:var(--gap)">Subindo o <span class="p">tunnel</span></h2>
+    <div class="codeblock a">
+      <div class="codehdr">
+        <div class="dot" style="background:#ff5f56"></div>
+        <div class="dot" style="background:#ffbd2e"></div>
+        <div class="dot" style="background:#27c93f"></div>
+        <span class="fname">bash</span>
+      </div>
+      <div class="codebody">
+<pre><span class="sc"># 1. Instalar cloudflared</span>
+<span class="sv">curl</span> -L https://pkgs.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare.gpg
+<span class="sv">sudo</span> apt install cloudflared
+
+<span class="sc"># 2. Autenticar (abre browser)</span>
+<span class="sv">cloudflared</span> tunnel login
+
+<span class="sc"># 3. Criar o tunnel</span>
+<span class="sv">cloudflared</span> tunnel create meu-homelab
+
+<span class="sc"># 4. Criar rota DNS (aponta domínio para o tunnel)</span>
+<span class="sv">cloudflared</span> tunnel route dns meu-homelab app.meudominio.com.br
+
+<span class="sc"># 5. Rodar (aponta para app local)</span>
+<span class="sv">cloudflared</span> tunnel run --url http://localhost:8080 meu-homelab</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 23: SEC 6 HEADER ====== -->
+<section class="slide sec-slide" data-s="next" aria-label="Seção 6">
+  <div class="gridbg"></div>
+  <div class="orb" style="width:500px;height:500px;background:var(--accent);bottom:-100px;left:20%"></div>
+  <div class="inner">
+    <div class="sec-line a" style="background:linear-gradient(90deg,var(--accent),var(--warn))"></div>
+    <p class="sec-tag a" style="color:var(--accent)">06 / seis seções</p>
+    <h2 class="sec-title a">📈 Tráfego<br>Orgânico &<br>Pago</h2>
+    <p class="sec-sub a">Seu MVP está no ar. E agora?</p>
+    <span class="sec-num" aria-hidden="true">06</span>
+  </div>
+</section>
+
+<!-- ====== SLIDE 24: TRÁFEGO ORGÂNICO ====== -->
+<section class="slide" data-s="next" aria-label="Tráfego orgânico">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Distribuição gratuita</p>
+    <h2 class="a">Tráfego <span class="s">Orgânico</span></h2>
+    <div class="two a" style="margin-top:var(--gap)">
+      <div>
+        <h3 class="mono s" style="margin-bottom:.7em;font-size:var(--h3-size)">SEO Básico</h3>
+        <ul class="ul">
+          <li>Título e meta description otimizados</li>
+          <li>URL amigável e semântica</li>
+          <li>Velocidade de carregamento</li>
+          <li>Conteúdo relevante e atualizado</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="mono p" style="margin-bottom:.7em;font-size:var(--h3-size)">Comunidades</h3>
+        <ul class="ul">
+          <li>Reddit br, Hacker News, Indie Hackers</li>
+          <li>Grupos LinkedIn do nicho</li>
+          <li>Twitter/X com hashtags relevantes</li>
+          <li>Dev.to, Tabnews, Medium</li>
+        </ul>
+      </div>
+    </div>
+    <div class="hbox a">
+      <p>Custo orgânico = <span class="s">tempo</span>. ROI vem depois, mas é sustentável e composto</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 25: TRÁFEGO PAGO ====== -->
+<section class="slide" data-s="next" aria-label="Tráfego pago">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">Validação acelerada</p>
+    <h2 class="a">Tráfego <span class="ac">Pago</span></h2>
+    <div class="two a" style="margin-top:var(--gap)">
+      <div class="card" style="border-color:rgba(220,38,38,.2)">
+        <h3 style="color:var(--danger)">Google Ads</h3>
+        <ul class="ul" style="margin-top:.7em">
+          <li>Alta intenção de compra</li>
+          <li>Comece com R$ 30/dia</li>
+          <li>Search ads para o nicho</li>
+          <li>Resultado quase imediato</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:rgba(37,99,235,.2)">
+        <h3 style="color:var(--primary)">Meta Ads</h3>
+        <ul class="ul" style="margin-top:.7em">
+          <li>Segmentação por interesse</li>
+          <li>Comece com R$ 20/dia</li>
+          <li>Bom para awareness e remarketing</li>
+          <li>Teste múltiplos criativos</li>
+        </ul>
+      </div>
+    </div>
+    <div class="hbox a" style="border-left-color:var(--accent)">
+      <p>Use tráfego pago para <span class="w">validar a proposta de valor</span> antes de escalar o investimento</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 26: MÉTRICAS ====== -->
+<section class="slide" data-s="next" aria-label="Métricas de validação">
+  <div class="gridbg"></div>
+  <div class="inner">
+    <p class="ctag a">KPIs do MVP</p>
+    <h2 class="a">Métricas que <span class="w">importam</span></h2>
+    <div class="grid3 a" style="margin-top:var(--gap)">
+      <div class="fc"><div class="fi">📊</div><div class="ft">Conversão</div><div class="fd">% visitantes que fazem a ação principal. Mais importante que volume.</div></div>
+      <div class="fc"><div class="fi">💸</div><div class="ft">CAC</div><div class="fd">Custo por aquisição. Deve ser menor que o LTV do cliente.</div></div>
+      <div class="fc"><div class="fi">🔄</div><div class="ft">Churn Rate</div><div class="fd">% que sai. Se alto, o produto não entrega valor real.</div></div>
+      <div class="fc"><div class="fi">📈</div><div class="ft">NPS</div><div class="fd">"Recomendaria para amigos?" Métrica simples de satisfação.</div></div>
+      <div class="fc"><div class="fi">⏱️</div><div class="ft">Time-to-Value</div><div class="fd">Tempo até o primeiro sucesso do usuário com o produto.</div></div>
+      <div class="fc"><div class="fi">💰</div><div class="ft">MRR</div><div class="fd">Receita recorrente mensal. O número que importa no final.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SLIDE 27: FINAL QR CODE ====== -->
+<section class="slide sec-slide" data-s="next" aria-label="Encerramento">
+  <div class="gridbg"></div>
+  <div class="orb" style="width:700px;height:700px;background:var(--primary);top:50%;left:50%;transform:translate(-50%,-50%);animation-duration:7s"></div>
+  <div class="inner" style="align-items:center;text-align:center">
+    <p class="eyebrow a">Flisol DF 2026 · Brasília</p>
+    <h2 class="a" style="font-family:'JetBrains Mono',monospace;font-weight:800;margin-bottom:var(--gap)">
+      Obrigado! <span class="p">Vamos conectar?</span>
+    </h2>
+    <div class="qrwrap a">
+      <img class="qrimg"
+        src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://www.linkedin.com/in/brunorozendo&bgcolor=ffffff&color=000000&margin=2"
+        alt="QR Code LinkedIn Bruno Rozendo"
+        loading="eager"
+      />
+      <p class="qrlabel">linkedin.com/in/brunorozendo</p>
+    </div>
+    <div style="display:flex;gap:var(--eg);justify-content:center;flex-wrap:wrap;margin-top:var(--gap)" class="a">
+      <span class="tag ts">Open Source</span>
+      <span class="tag tp">Homelab</span>
+      <span class="tag ta">MVP</span>
+      <span class="tag tw">Linux</span>
+      <span class="tag ts">Ansible</span>
+      <span class="tag tp">Cloudflare</span>
+    </div>
+    <p style="font-family:'Space Grotesk',sans-serif;font-size:var(--small-size);color:var(--muted);margin-top:var(--gap)" class="a">
+      Festival Latino-Americano de Instalação de Software Livre
+    </p>
+  </div>
+</section>
+
+</main>
+
+<script>
+class Deck {
+  constructor() {
+    this.slides = Array.from(document.querySelectorAll('.slide'));
+    this.n = this.slides.length;
+    this.cur = 0;
+    this.busy = false;
+
+    document.getElementById('ts').textContent = this.n;
+    this.slides.forEach((s, i) => {
+      s.dataset.s = i === 0 ? 'active' : 'next';
+    });
+
+    this._bind();
+    this._ui();
+  }
+
+  go(to) {
+    if (this.busy || to < 0 || to >= this.n || to === this.cur) return;
+    this.busy = true;
+
+    const from = this.cur;
+    const dir = to > from ? 1 : -1;
+    const prev = this.slides[from];
+    const next = this.slides[to];
+
+    next.querySelectorAll('.a').forEach(el => {
+      el.style.animation = 'none';
+      void el.offsetHeight;
+      el.style.animation = '';
+    });
+
+    next.style.transition = 'none';
+    next.dataset.s = dir > 0 ? 'next' : 'prev';
+    void next.offsetHeight;
+    next.style.transition = '';
+
+    prev.dataset.s = dir > 0 ? 'prev' : 'next';
+    next.dataset.s = 'active';
+
+    this.cur = to;
+    this._ui();
+
+    setTimeout(() => { this.busy = false; }, 620);
+  }
+
+  _ui() {
+    document.getElementById('cs').textContent = this.cur + 1;
+    document.getElementById('prog').style.width =
+      (this.cur / (this.n - 1) * 100) + '%';
+  }
+
+  _bind() {
+    document.addEventListener('keydown', e => {
+      if (['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)) { e.preventDefault(); this.go(this.cur + 1); }
+      else if (['ArrowLeft','ArrowUp','PageUp'].includes(e.key)) { e.preventDefault(); this.go(this.cur - 1); }
+      else if (e.key === 'Home') { e.preventDefault(); this.go(0); }
+      else if (e.key === 'End') { e.preventDefault(); this.go(this.n - 1); }
+    });
+
+    let wt = null;
+    document.addEventListener('wheel', e => {
+      e.preventDefault();
+      if (wt) return;
+      wt = setTimeout(() => { wt = null; }, 750);
+      this.go(this.cur + (e.deltaY > 0 ? 1 : -1));
+    }, { passive: false });
+
+    let ty = 0, tx = 0;
+    document.addEventListener('touchstart', e => {
+      ty = e.touches[0].clientY; tx = e.touches[0].clientX;
+    }, { passive: true });
+    document.addEventListener('touchend', e => {
+      const dy = ty - e.changedTouches[0].clientY;
+      const dx = tx - e.changedTouches[0].clientX;
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50)
+        this.go(this.cur + (dy > 0 ? 1 : -1));
+      else if (Math.abs(dx) > 50)
+        this.go(this.cur + (dx > 0 ? 1 : -1));
+    }, { passive: true });
+
+    document.getElementById('bn').addEventListener('click', () => this.go(this.cur + 1));
+    document.getElementById('bp').addEventListener('click', () => this.go(this.cur - 1));
+
+    document.querySelector('main').addEventListener('click', e => {
+      if (e.target.closest('#navbtns')) return;
+      this.go(this.cur + (e.clientX > window.innerWidth / 2 ? 1 : -1));
+    });
+  }
+}
+
+const deck = new Deck();
+</script>
+</body>
+</html>
